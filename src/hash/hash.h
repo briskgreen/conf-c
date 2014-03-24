@@ -25,10 +25,20 @@ typedef struct node
 	struct node *next;
 }CONF_VALUE;
 
+//键/值对数据结构
+typedef struct
+{
+	char *key;
+	CONF_VALUE *value;
+}CONF_ARG;
+
 //插入数据,key为键，value为值
-int conf_value_insert(const char *key,CONF_VALUE *value);
+int conf_value_insert(CONF_ARG *arg);
 
 //根据一个键查找数据
-int conf_value_get(CONF *conf,const char *key);
+CONF_ARG conf_value_get(CONF *conf,const char *key);
+
+//得到所有键值对
+CONF_ARG conf_value_get_all(CONF *conf); 
 
 #endif

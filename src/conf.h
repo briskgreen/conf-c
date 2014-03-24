@@ -25,20 +25,23 @@ int conf_count(CONF *conf);
 //创建一个配置文件，path为配置文件的路经
 CONF *conf_creater_new(const char *path);
 
-/* 添加一个配置键/值对,key为键
- * value为值
+/* 添加一个配置键/值对
+ * arg为键值对
  * note为注释内容
  * 文件中以#开头
  * 返回值:
  * 正确时返回0
  * 错误时返回小于0的错误代码
  */
-int conf_insert(CONF *conf,const char *key,CONF_VALUE *value,const char *note);
+int conf_insert(CONF *conf,CONF_ARG *arg,const char *note);
 
 //保存配置文件,正确时返回0，错误时返回小于0的错误代码
 int conf_save(CONF *conf);
 
 //释放内存
 void conf_free(CONF *conf);
+
+//打印错误信息函数,errcode为错误代码
+void conf_error(int errcode);
 
 #endif
