@@ -6,22 +6,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*值链表数据结构*/
+/*值数据结构*/
 typedef struct node
 {
 	char *key
-	char *value;
-	struct node *next;
+	char **value;
 }CONF_VALUE;
 
 /* 键/值对数据结构
- * hash为使用的hash函数：0为第一个哈希算法 1：为第二个哈希算法
  * len为当前结点个数
  * next为冲突时的链表
  */
 typedef struct arg
 {
-	int hash;
 	int len;
 	CONF_VALUE *value;
 
