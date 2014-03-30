@@ -93,6 +93,129 @@ int conf_count(CONF *conf)
 	return conf->len;
 }
 
+//创建一个配置文件
+//path为配置文件路径
+CONF_CREATER *conf_creater_new(const char *path)
+{
+	CONF *creater;
+
+	creater=malloc(sizeof(CONF_CREATER));
+	if(creater == NULL)
+	{
+		printf("申请内存空间出错!\n");
+		return NULL;
+	}
+
+	if((creater->fp=fopen(path,"wb")) == NULL)
+	{
+		printf("创建配置文件出错!\n");
+		return NULL;
+	}
+
+	creater->note=NULL;
+	creater->next=NULL;
+	creater->value=NULL;
+}
+
+//插入一个参数到内存
+int conf_insert(CONF_CREATER *creater,CONF_VALUE *value,const char *note)
+{
+	//结点
+	CONF_CREATER *temp;
+
+	//如果是第一个参数，则直接放入
+	if(creater->next == NULL)
+	{
+		creater->value=value;
+		creater->note=note;
+		
+		return CONF_OK;
+	}
+
+	//否则拉下链表
+	while(creater->next != NULL)
+		creater=creater->next;
+
+	temp=malloc(sizeof(CONF_CREATER));
+	if(temp == NULL)
+		return CONF_NO_MEM;
+	temp->value=value;
+	temp->note=note;
+	temp->next=NULL;
+	creater->next=temp;
+
+	return CONF_OK;
+}
+
+//保存内存中的参数到文件
+int conf_save(CONF_CREATER *creater)
+{
+	int i;
+
+	if(creater->next == NULL)
+		return CONF_NO_DATA;
+
+	while(creater->next != NULL)
+	{
+		//如果有注释则加入注释以#字开头
+		if(creater->note != NULL)
+			fprintf(creater->fp,"#%s\n",creater->note);
+		fprintf(creater->fp,"%s = %s",creater->value->key,creater->value->value[0]);
+		//如果该键有多个参数则用,分开
+		if(creater->value->value[1] != NULL)
+		{
+			for(i=1;creater->value->value[i] != NULL;++i)
+				fprintf(creater->fp,",%s",creater->value->value[i]);
+		}
+
+		fwrite("\n",1,1,creater->fp);
+	}
+
+	fclose(creater->fp);
+
+	return CONF_OK;
+}
+
+//释放CONF内存
+void conf_free(CONF *conf)
+{
+	int i;
+	int j;
+
+	for(i=0;i != conf->len;++i)
+	{
+		if(conf->hash_data[i].len != 0)
+		{
+			do
+			{
+				free(conf->hash_data[i].value);
+
+				hash_data[i]=hash_data[i].next;
+			}while(hash_data[i].next != NULL);
+			
+			free(conf->hash_data[i]);
+		}
+	}
+
+	free(conf->hash_data);
+	free(conf);
+	conf=NULL;
+}
+
+//释放CONF_CREATER内存
+void conf_creater_free(CONF_CREATER *creater)
+{
+	do
+	{
+		free(creater->value);
+
+		creater=creater->next;
+	}while(creater->next != NULL);
+
+	free(creater);
+	creater=NULL;
+}
+
 //根据错误代码打印错误信息
 void conf_error(int errcode)
 {

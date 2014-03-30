@@ -19,6 +19,18 @@
 #define CONF_NO_INIT -2 //未初始化
 #define CONF_NO_MEM -3 //申请内存出错
 
+//保存配置文件数据结构
+//value为键值对数据结构
+//note为注释
+typedef struct creater
+{
+	FILE *fp;
+
+	CONF_VALUE *value;
+	char *note;
+
+	struct creater *next;
+}CONF_CREATER;
 //打开并初始化，path为配置文件的路经，返回CONF数据
 CONF *conf_open(const char *path);
 
@@ -29,23 +41,26 @@ int conf_parse(CONF *conf);
 int conf_count(CONF *conf);
 
 //创建一个配置文件，path为配置文件的路经
-CONF *conf_creater_new(const char *path);
+CONF_CREATER *conf_creater_new(const char *path);
 
 /* 添加一个配置键/值对
- * arg为键值对
+ * value为键值对
  * note为注释内容
  * 文件中以#开头
  * 返回值:
  * 正确时返回0
  * 错误时返回小于0的错误代码
  */
-int conf_insert(CONF *conf,CONF_ARG *arg,const char *note);
+int conf_insert(CONF_CREATER *creater,CONF_VALUE *value,const char *note);
 
 //保存配置文件,正确时返回0，错误时返回小于0的错误代码
-int conf_save(CONF *conf);
+int conf_save(CONF_CREATER *creater);
 
 //释放内存
 void conf_free(CONF *conf);
+
+//释放CONF_CREATER内存
+void conf_creater_free(CONF_CREATER *creater);
 
 //打印错误信息函数,errcode为错误代码
 void conf_error(int errcode);
