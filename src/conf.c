@@ -62,7 +62,7 @@ int conf_parse(CONF *conf)
 	retcode=parse_value(conf,value);
 
 	//开辟内存空间
-	conf->hash_data=malloc(sizeof(CONF_ARG));
+	conf->hash_data=malloc(sizeof(CONF_ARG)*conf->len);
 	if(conf->hash_data == NULL)
 	{
 		if(value)
@@ -73,6 +73,14 @@ int conf_parse(CONF *conf)
 			free(value);
 		}
 		retcode=CONF_NO_MEM;
+	}
+	
+	//初始化数组
+	for(i=0;i != len;++i)
+	{
+		conf->hash_data[i].len=0;
+		conf->hash_data[i].next=NULL;
+		conf->hash_data[i].value=NULL;
 	}
 	//插入数据
 	for(i=0;i != len;++i)
