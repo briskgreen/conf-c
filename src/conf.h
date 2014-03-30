@@ -13,6 +13,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+//定义错误代码
+#define CONF_OK 0 //操作成功
+#define CONF_NO_DATA -1 //没有数据
+#define CONF_NO_INIT -2 //未初始化
+#define CONF_NO_MEM -3 //申请内存出错
+
 //打开并初始化，path为配置文件的路经，返回CONF数据
 CONF *conf_open(const char *path);
 
