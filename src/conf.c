@@ -17,6 +17,8 @@ char *set_value_with_mul(char *data,int *len);
 char *set_value_with_signal(char *data,int flags,int *len);
 //双绰号特殊字符
 char *set_value_with_double(char *data,int flags,int *len);
+//释放内存
+void free_data(CONF_ARG *data);
 
 //打开配置文件并初始化值
 //path为配置文件路径
@@ -67,9 +69,9 @@ int conf_parse(CONF *conf)
 	data=malloc(sizeof(char)*file_len+1);
 	//最后一个字符为0
 	data[file_len]='\0';
-	fread(data,len,1,conf->fp);
+	fread(data,file_len,1,conf->fp);
 	//关闭文件
-	fclose(fp);
+	fclose(conf->fp);
 
 	//解析 
 	retcode=parse_value(conf,data,&value);
@@ -79,24 +81,20 @@ int conf_parse(CONF *conf)
 	if(conf->hash_data == NULL)
 	{
 		if(value)
-		{
-			for(i=0;i != len;++i)
-				free(value[i]);
-
 			free(value);
-		}
+
 		retcode=CONF_NO_MEM;
 	}
 	
 	//初始化数组
-	for(i=0;i != len;++i)
+	for(i=0;i != conf->len;++i)
 	{
 		conf->hash_data[i].len=0;
 		conf->hash_data[i].next=NULL;
 		conf->hash_data[i].value=NULL;
 	}
 	//插入数据
-	for(i=0;i != len;++i)
+	for(i=0;i != conf->len;++i)
 		conf_value_insert(conf->hash_data,&value[i],conf->len);
 
 	free(data);
@@ -108,7 +106,7 @@ int conf_parse(CONF *conf)
 //返回键值对个数
 int conf_count(CONF *conf)
 {
-	if(conf->conf == 0)
+	if(conf->len == 0)
 		return CONF_NO_DATA;
 
 	return conf->len;
@@ -118,7 +116,7 @@ int conf_count(CONF *conf)
 //path为配置文件路径
 CONF_CREATER *conf_creater_new(const char *path)
 {
-	CONF *creater;
+	CONF_CREATER *creater;
 
 	creater=malloc(sizeof(CONF_CREATER));
 	if(creater == NULL)
@@ -206,16 +204,7 @@ void conf_free(CONF *conf)
 	for(i=0;i != conf->len;++i)
 	{
 		if(conf->hash_data[i].len != 0)
-		{
-			do
-			{
-				free(conf->hash_data[i].value);
-
-				hash_data[i]=hash_data[i].next;
-			}while(hash_data[i].next != NULL);
-			
-			free(conf->hash_data[i]);
-		}
+			free_data(&conf->hash_data[i]);
 	}
 
 	free(conf->hash_data);
@@ -245,7 +234,7 @@ void conf_error(int errcode)
 		case CONF_OK:
 			printf("成功!\n");
 			break;
-		case CONF_NO_DATA;
+		case CONF_NO_DATA:
 			printf("错误:没有数据!\n");
 			break;
 		case CONF_NO_INIT:
@@ -253,6 +242,12 @@ void conf_error(int errcode)
 			break;
 		case CONF_NO_MEM:
 			printf("错误:申请内存空间出错!\n");
+			break;
+		case CONF_KEY_ERR:
+			printf("错误:错误的键名!\n");
+			break;
+		case CONF_VALUE_ERR:
+			printf("错误:错误的值!\n");
 			break;
 		default:
 			printf("未知错误!\n");
@@ -289,7 +284,7 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				else
 					flags[0]=0;
 				break;
-			case ''':
+			case '\'':
 				if(!flags[2])
 					flags[1]=1;
 				else
@@ -335,16 +330,18 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				if(len == -1)
 					return CONF_VALUE_ERR;
 
-				value[index].value=realloc(sizeof(char)*len+1);
-				snprintf(value[index].value,sizeof(char)*len+1,"%s",data+i);
+				value[index].value=malloc(sizeof(char*)*2);
+				value[index].value[0]=malloc(sizeof(char)*len+1);
+				snprintf(value[index].value[0],sizeof(char)*len+1,"%s",data+i);
 				i+=len;
+				value[index].value[1]=NULL;
 			}
 			else if(flags[3] && (!flags[1] || !flags[2]))
 				value[index].value=set_value_with_mul(data+i,&i);
 			else if(flags[1])
-				value.[index].value=set_value_with_signal(data+i,flags[3],&i);
+				value[index].value=set_value_with_signal(data+i,flags[3],&i);
 			else if(flags[2])
-				value.[index].value=set_value_with_double(data+i,flags[3],&i);
+				value[index].value=set_value_with_double(data+i,flags[3],&i);
 		}
 
 		++conf->len;
@@ -363,8 +360,15 @@ int next_line(char *data)
 	return i+1;
 }
 
-int get_value_len(char *data)
-{}
+int get_value_len_with_normal(char *data)
+{
+	int i=0;
+
+	while(data[i] != ' ' && data[i] != '#' && data[i] != '\t' && data[i] != '\n')
+		++i;
+
+	return i+1;
+}
 
 int get_key_len(char *data)
 {
@@ -377,4 +381,29 @@ int get_key_len(char *data)
 		return -1;
 
 	return i;
+}
+
+char *set_value_with_mul(char *data,int *len)
+{}
+
+char *set_value_with_signal(char *data,int flags,int *len)
+{}
+
+char *set_value_with_double(char *data,int flags,int *len)
+{}
+
+void free_data(CONF_ARG *data)
+{
+	int i;
+
+	while(data)
+	{
+		free(data->value->key);
+		for(i=0;data->value->value[i] != NULL;++i)
+			free(data->value->value[i]);
+		free(data->value->value);
+		free(data->value);
+
+		data=data->next;
+	}
 }

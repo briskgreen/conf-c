@@ -18,6 +18,8 @@
 #define CONF_NO_DATA -1 //没有数据
 #define CONF_NO_INIT -2 //未初始化
 #define CONF_NO_MEM -3 //申请内存出错
+#define CONF_KEY_ERR -4 //键错误
+#define CONF_VALUE_ERR -5 //值错误
 
 //保存配置文件数据结构
 //value为键值对数据结构

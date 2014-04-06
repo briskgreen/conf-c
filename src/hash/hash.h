@@ -9,7 +9,7 @@
 /*值数据结构*/
 typedef struct node
 {
-	char *key
+	char *key;
 	char **value;
 }CONF_VALUE;
 
