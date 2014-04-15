@@ -5,18 +5,8 @@
 //正确时返回0并置res为参数列表conf->len为参数个数
 //错误时返回错误代码
 int parse_value(CONF *conf,char *data,CONF_VALUE **res);
-//得到下一行的位置
+//得到一行的偏移量
 int next_line(char *data);
-//得到参数的长度
-int get_value_len_with_normal(char *data);
-//得到键长度
-int get_key_len(char *data);
-//设置多个参数
-char *set_value_with_mul(char *data,int *len);
-//单引号特殊字符
-char *set_value_with_signal(char *data,int flags,int *len);
-//双绰号特殊字符
-char *set_value_with_double(char *data,int flags,int *len);
 //释放内存
 void free_data(CONF_ARG *data);
 
@@ -257,97 +247,106 @@ void conf_error(int errcode)
 //解析参数
 int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 {
-	int i;
-	int len;
-	int index=0; //存储键值对下标
-	int count=0; //多参数下标
-	int flags[4]={0};
-	CONF_VALUE *value=NULL;
-	/* 0 =
-	 * 1 '
-	 * 2 "
-	 * 3 ,
-	 */
+	int i=0; //字符偏移量
+	int flags=0; //'与"的标记
+	int key=0; //键标记
+	int arg=0; //,标记
+	int len=0; //键值对个数
+	int count=0; //参数个数
+	CONF_VALUE *value=NULL; //存放键值参数
+	STACK stack; //存放参数的栈
 
-	for(i=0;data[i];++i)
+	stack_init(&stack);
+
+	while(data[i])
 	{
-		len=0;
-
 		switch(data[i])
 		{
-			case '#':
-				i+=next_line(data+i);
-				break;
-			case '=':
-				if(flags[0])
-					flags[0]=1;
+			case '=': //读取键，如果第一次读到=则表示键已读完
+				if(!key)
+				{
+					value=realloc(value,sizeof(CONF_VALUE)*(len+1));
+					value[len].key=malloc(sizeof(char)*stack_length(&stack)+1);
+					snprintf(value[len].key,sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
+					key=1;
+					stack_cleanup(&stack);
+				}
 				else
-					flags[0]=0;
+					if(stack_push(&stack,data[i]) != 0) //否则则是值压入栈
+						return STACK_MAX;
 				break;
-			case '\'':
-				if(!flags[2])
-					flags[1]=1;
-				else
-					flags[1]=0;
-				break;
+/* 如果第一次读到"则设置"标记
+ * 如果不是第一次读入"则如果flags为1则表示读取完成
+ * 如果为2则表示'标记则将"压入栈中
+ */
 			case '"':
-				if(!flags[1])
-					flags[2]=1;
-				else
-					flags[2]=0;
+				if(!flags)
+					flags=1;
+				else if(flags == 1)
+					flags=0;
+				else if(flags == 2)
+					if(stack_push(&stack,data[i]) != 0)
+						return STACK_MAX;
 				break;
+			case '\'': //上同
+				if(!flags)
+					flags=2;
+				else if(flags == 2)
+					flags=0;
+				else if(flags == 1)
+					if(stack_push(&stack,data[i]) != 0)
+						return STACK_MAX;
+				break;
+/* 多参数标记
+ * 如果已设置'/"标记则直接压入
+ * 如果没有设置'/"标记且arg未设置则设置arg
+ * 否则arg设置为0
+ */
 			case ',':
-				if(flags[0])
-					flags[3]=1;
-				else
-					flags[3]=0;
+				if(flags)
+					stack_push(&stack,data[i]);
+				if(!flags && !arg)
+					arg=1;
+				if(arg) //存入多参数
+				{
+					value[len].value=realloc(value[len].value,sizeof(char)*count+1);
+					snprintf(value[len].value[count],sizeof(char)*count+1,"%s",stack.data);
+					++count;
+					stack_cleanup(&stack);
+					arg=0;
+				}
 				break;
+			case '#': //如果没有设置flags则是注释直接跳到下一行
+				if(!flags)
+					i+=next_line(data+i);
+				else
+					if(stack_push(&stack,data[i]) != 0)
+						return STACK_MAX;
+				break;
+			case ' ':
+			case '\t':
+				if(flags)
+					if(stack_push(&stack,data[i]) != 0)
+						return STACK_MAX;
+				break;
+			case '\n': //一行数据读完
+				if(stack_empty(&stack))
+					break;
+				value[len].value=realloc(value[len].value,sizeof(char)*count+1);
+				snprintf(value[len].value[count],sizeof(char)*count+1,"%s",stack.data);
+				count=0;
+				++len;
+				stack_cleanup(&stack);
+				break;
+			default: //插入字符
+				if(stack_push(&stack,data[i]) != 0)
+					return STACK_MAX;
 		}
-
-		if(!flags[0] && data[i] != ' ' && data[i] != '=' && data[i] != '\t' && data[i] != '\n')
-		{
-			len=get_key_len(data+i);
-			if(len == -1)
-				return CONF_KEY_ERR;
-			value=realloc(value,sizeof(CONF_VALUE)*(index+1));
-			value[index].key=malloc(sizeof(char)*len+1);
-			snprintf(value[index].key,sizeof(char)*len+1,"%s",data+i);
-			i+=len;
-			flags[0]=1;
-		}
-
-		if(flags[0])
-		{
-			//过滤掉空白符以及符号
-			while(data[i] == ' ' || data[i] == '\t')
-				++i;
-			if((data[i] == '=') && (flags[1] || flags[2]))
-				++i;
-
-			if(!flags[1] && !flags[2] && !flags[3])
-			{
-				len=get_value_len_with_normal(data+i);
-				if(len == -1)
-					return CONF_VALUE_ERR;
-
-				value[index].value=malloc(sizeof(char*)*2);
-				value[index].value[0]=malloc(sizeof(char)*len+1);
-				snprintf(value[index].value[0],sizeof(char)*len+1,"%s",data+i);
-				i+=len;
-				value[index].value[1]=NULL;
-			}
-			else if(flags[3] && (!flags[1] || !flags[2]))
-				value[index].value=set_value_with_mul(data+i,&i);
-			else if(flags[1])
-				value[index].value=set_value_with_signal(data+i,flags[3],&i);
-			else if(flags[2])
-				value[index].value=set_value_with_double(data+i,flags[3],&i);
-		}
-
-		++conf->len;
 	}
 
 	*res=value;
+
+	return 0;
 }
 
 int next_line(char *data)
@@ -359,38 +358,6 @@ int next_line(char *data)
 
 	return i+1;
 }
-
-int get_value_len_with_normal(char *data)
-{
-	int i=0;
-
-	while(data[i] != ' ' && data[i] != '#' && data[i] != '\t' && data[i] != '\n')
-		++i;
-
-	return i+1;
-}
-
-int get_key_len(char *data)
-{
-	int i=0;
-
-	while(data[i] != ' ' && data[i] != '=' && data[i] != '\t' && data[i]!= '\n')
-		++i;
-
-	if(data[i] == '\n')
-		return -1;
-
-	return i;
-}
-
-char *set_value_with_mul(char *data,int *len)
-{}
-
-char *set_value_with_signal(char *data,int flags,int *len)
-{}
-
-char *set_value_with_double(char *data,int flags,int *len)
-{}
 
 void free_data(CONF_ARG *data)
 {

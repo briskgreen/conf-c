@@ -8,8 +8,8 @@
 
 /*配置文件中健/值以hash的方式存储在内存中*/
 #include "hash/hash.h"
+#include "stack/stack.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -20,6 +20,7 @@
 #define CONF_NO_MEM -3 //申请内存出错
 #define CONF_KEY_ERR -4 //键错误
 #define CONF_VALUE_ERR -5 //值错误
+#define STACK_MAX -6 //过大的参数
 
 //保存配置文件数据结构
 //value为键值对数据结构
