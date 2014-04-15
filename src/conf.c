@@ -68,11 +68,27 @@ int conf_parse(CONF *conf)
 
 	//开辟内存空间
 	conf->hash_data=malloc(sizeof(CONF_ARG)*conf->len);
+	//开辟内存空间出错
 	if(conf->hash_data == NULL)
 	{
+		//如果已经解析了则进行释放
 		if(value)
-			free(value);
+		{
+			int i=0;
+			int j;
 
+			while(value[i])
+			{
+				free(value[i].key);
+				for(j=0;value[i].value[j] != NULL;++i)
+					free(value[i].value[j]);
+
+				free(value[i]);
+				++i;
+			}
+		}
+
+		//返回错误
 		retcode=CONF_NO_MEM;
 	}
 	
