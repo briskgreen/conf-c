@@ -50,7 +50,7 @@ int conf_parse(CONF *conf)
 	int i;
 
 	//加载配置文件内容到内存
-	if(fseek(conf->fp,0L,SEEK_END) == 0)
+	if(fseek(conf->fp,0L,SEEK_END) != 0)
 		return CONF_NO_INIT;
 	//得到长度
 	file_len=ftell(conf->fp);
@@ -88,7 +88,7 @@ int conf_parse(CONF *conf)
 		conf_value_insert(conf->hash_data,&value[i],conf->len);
 
 	free(data);
-	free(value);
+	//free(value);
 
 	return retcode;
 }
@@ -239,6 +239,9 @@ void conf_error(int errcode)
 		case CONF_VALUE_ERR:
 			printf("错误:错误的值!\n");
 			break;
+		case STACK_MAX:
+			printf("参数字符过多!\n");
+			break;
 		default:
 			printf("未知错误!\n");
 	}
@@ -269,11 +272,14 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 					value[len].key=malloc(sizeof(char)*stack_length(&stack)+1);
 					snprintf(value[len].key,sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
 					key=1;
+					value[len].value=NULL;
 					stack_cleanup(&stack);
 				}
 				else
+				{
 					if(stack_push(&stack,data[i]) != 0) //否则则是值压入栈
 						return STACK_MAX;
+				}
 				break;
 /* 如果第一次读到"则设置"标记
  * 如果不是第一次读入"则如果flags为1则表示读取完成
@@ -285,8 +291,10 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				else if(flags == 1)
 					flags=0;
 				else if(flags == 2)
+				{
 					if(stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
+				}
 				break;
 			case '\'': //上同
 				if(!flags)
@@ -294,8 +302,10 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				else if(flags == 2)
 					flags=0;
 				else if(flags == 1)
+				{
 					if(stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
+				}
 				break;
 /* 多参数标记
  * 如果已设置'/"标记则直接压入
@@ -309,8 +319,9 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 					arg=1;
 				if(arg) //存入多参数
 				{
-					value[len].value=realloc(value[len].value,sizeof(char)*count+1);
-					snprintf(value[len].value[count],sizeof(char)*count+1,"%s",stack.data);
+					value[len].value=realloc(value[len].value,sizeof(char *)*(count+1));
+					value[len].value[count]=malloc(sizeof(char)*stack_length(&stack)+1);
+					snprintf(value[len].value[count],sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
 					++count;
 					stack_cleanup(&stack);
 					arg=0;
@@ -320,31 +331,41 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				if(!flags)
 					i+=next_line(data+i);
 				else
+				{
 					if(stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
+				}
 				break;
 			case ' ':
 			case '\t':
 				if(flags)
+				{
 					if(stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
+				}
 				break;
 			case '\n': //一行数据读完
 				if(stack_empty(&stack))
 					break;
-				value[len].value=realloc(value[len].value,sizeof(char)*count+1);
-				snprintf(value[len].value[count],sizeof(char)*count+1,"%s",stack.data);
+				value[len].value=realloc(value[len].value,sizeof(char *)*(count+2));
+				value[len].value[count]=malloc(sizeof(char)*stack_length(&stack)+1);
+				snprintf(value[len].value[count],sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
+				value[len].value[count+1]=NULL;
 				count=0;
 				++len;
+				key=0;
 				stack_cleanup(&stack);
 				break;
 			default: //插入字符
 				if(stack_push(&stack,data[i]) != 0)
 					return STACK_MAX;
 		}
+
+		++i;
 	}
 
 	*res=value;
+	conf->len=len;
 
 	return 0;
 }
@@ -356,7 +377,7 @@ int next_line(char *data)
 	while(data[i] != '\n')
 		++i;
 
-	return i+1;
+	return i;
 }
 
 void free_data(CONF_ARG *data)
@@ -369,7 +390,7 @@ void free_data(CONF_ARG *data)
 		for(i=0;data->value->value[i] != NULL;++i)
 			free(data->value->value[i]);
 		free(data->value->value);
-		free(data->value);
+		//free(data->value);
 
 		data=data->next;
 	}

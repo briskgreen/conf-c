@@ -9,6 +9,7 @@
 #endif
 //键和参数的最大值
 #define MAX_ARG_SIZE 512
+#define STACK_MAX -6 //过大的参数
 /*栈数据结构*/
 typedef struct
 {

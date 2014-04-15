@@ -6,7 +6,9 @@ unsigned int hash_func2(const char *key);
 /* 在hash_data中找出key
  * 如果找到则将值赋给value并返回1
  * 否则返回0 */
-int hash_search(CONF_ARG *arg,char *key,CONF_VALUE *value);
+int hash_search(CONF_ARG *arg,char *key,CONF_VALUE **value);
+//插入数据
+void hash_insert(CONF_ARG *arg,CONF_VALUE *value);
 
 void conf_value_insert(CONF_ARG *arg,CONF_VALUE *value,int len)
 {
@@ -29,10 +31,11 @@ void conf_value_insert(CONF_ARG *arg,CONF_VALUE *value,int len)
 	//当前位置数据个数加1
 	++arg[hash].len;
 	//插入数据
-	while(arg[hash].next != NULL)
-		arg[hash]=arg[hash].next;
+	/*while(arg[hash].next != NULL)
+		arg[hash]=arg[hash].next;*/
+	hash_insert(&arg[hash],value);
 
-	arg[hash].value=value;
+	//arg[hash].value=value;
 }
 
 CONF_VALUE *conf_value_get(CONF *conf,const char *key)
@@ -44,12 +47,12 @@ CONF_VALUE *conf_value_get(CONF *conf,const char *key)
 	 * 否则使用第二个哈希函数计算值并比对key
 	 * 如果都未能匹配，则返回NULL */
 	hash=hash_func1(key)%conf->len;
-	if(hash_search(&conf->hash_data[hash],key,value))
+	if(hash_search(&conf->hash_data[hash],key,&value))
 		return value;
 	else
 	{
 		hash=hash_func2(key)%conf->len;
-		if(hash_search(&conf->hash_data[hash],key,value))
+		if(hash_search(&conf->hash_data[hash],key,&value))
 			return value;
 	}
 
@@ -121,18 +124,18 @@ unsigned int hash_func2(const char *key)
 	return hash&0x7FFFFFFF;
 }
 
-int hash_search(CONF_ARG *arg,char *key,CONF_VALUE *value)
+int hash_search(CONF_ARG *arg,char *key,CONF_VALUE **value)
 {
 	//如果该位置没有数据返回0
 	if(arg->len == 0)
 		return 0;
 	//否则进行查找
-	while(arg->next != NULL)
+	while(arg != NULL)
 	{
 		//如果找到返回
 		if(strcmp(arg->value->key,key) == 0)
 		{
-			value=arg->value;
+			*value=arg->value;
 			return 1;
 		}
 
@@ -142,4 +145,12 @@ int hash_search(CONF_ARG *arg,char *key,CONF_VALUE *value)
 
 	//如果没有找到返回0
 	return 0;
+}
+
+void hash_insert(CONF_ARG *arg,CONF_VALUE *value)
+{
+	while(arg->next != NULL)
+		arg=arg->next;
+
+	arg->value=value;
 }
