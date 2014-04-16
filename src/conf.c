@@ -126,22 +126,25 @@ CONF_CREATER *conf_creater_new(const char *path)
 		return NULL;
 	}
 
+	creater->key=NULL;
+	creater->value=NULL;
 	creater->note=NULL;
 	creater->next=NULL;
-	creater->value=NULL;
 }
 
 //插入一个参数到内存
-int conf_insert(CONF_CREATER *creater,CONF_VALUE *value,const char *note)
+int conf_insert(CONF_CREATER *creater,char *key,char *value,char *note)
 {
 	//结点
 	CONF_CREATER *temp;
 
 	//如果是第一个参数，则直接放入
-	if(creater->next == NULL)
+	if(creater->key == NULL)
 	{
+		creater->key=key;
 		creater->value=value;
 		creater->note=note;
+		creater->next=NULL;
 		
 		return CONF_OK;
 	}
@@ -153,6 +156,8 @@ int conf_insert(CONF_CREATER *creater,CONF_VALUE *value,const char *note)
 	temp=malloc(sizeof(CONF_CREATER));
 	if(temp == NULL)
 		return CONF_NO_MEM;
+
+	temp->key=key;
 	temp->value=value;
 	temp->note=note;
 	temp->next=NULL;
@@ -164,28 +169,30 @@ int conf_insert(CONF_CREATER *creater,CONF_VALUE *value,const char *note)
 //保存内存中的参数到文件
 int conf_save(CONF_CREATER *creater)
 {
-	int i;
+	CONF_CREATER *head=creater;
+//	int i;
 
-	if(creater->next == NULL)
+	if(creater->key == NULL)
 		return CONF_NO_DATA;
 
-	while(creater->next != NULL)
+	while(creater != NULL)
 	{
 		//如果有注释则加入注释以#字开头
 		if(creater->note != NULL)
-			fprintf(creater->fp,"#%s\n",creater->note);
-		fprintf(creater->fp,"%s = %s",creater->value->key,creater->value->value[0]);
+			fprintf(head->fp,"#%s\n",creater->note);
+		fprintf(head->fp,"%s = %s\n",creater->key,creater->value);
+		creater=creater->next;
 		//如果该键有多个参数则用,分开
-		if(creater->value->value[1] != NULL)
+		/*if(creater->value->value[1] != NULL)
 		{
 			for(i=1;creater->value->value[i] != NULL;++i)
 				fprintf(creater->fp,",%s",creater->value->value[i]);
 		}
 
-		fwrite("\n",1,1,creater->fp);
+		fwrite("\n",1,1,creater->fp);*/
 	}
 
-	fclose(creater->fp);
+	fclose(head->fp);
 
 	return CONF_OK;
 }
@@ -210,15 +217,15 @@ void conf_free(CONF *conf)
 //释放CONF_CREATER内存
 void conf_creater_free(CONF_CREATER *creater)
 {
-	do
+	CONF_CREATER *head;
+
+	while(creater)
 	{
-		free(creater->value);
-
+		head=creater;
 		creater=creater->next;
-	}while(creater->next != NULL);
 
-	free(creater);
-	creater=NULL;
+		free(head);
+	}
 }
 
 //根据错误代码打印错误信息

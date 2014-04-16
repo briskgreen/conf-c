@@ -63,6 +63,7 @@ CONF_VALUE **conf_value_get_all(CONF *conf)
 {
 	CONF_VALUE **value;
 	int len=0;
+	int index=0;
 	int i;
 
 	if(conf->len == 0)
@@ -74,14 +75,18 @@ CONF_VALUE **conf_value_get_all(CONF *conf)
 			++len;
 
 	//动态申请内存存储返回的数据
-	value=malloc(sizeof(CONF_VALUE)*len+1);
+	value=malloc(sizeof(CONF_VALUE *)*(len+1));
 	if(value == NULL)
 		return NULL;
+	value[len]=NULL;
 	//第二次扫描，返回数组中所有有数据的值
 	for(i=0;i != conf->len;++i)
 	{
 		if(conf->hash_data[i].len > 0)
-			value[i]=conf->hash_data[i].value;
+		{
+			value[index]=conf->hash_data[i].value;
+			++index;
+		}
 	}
 
 	return value;

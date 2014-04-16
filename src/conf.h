@@ -28,7 +28,8 @@ typedef struct creater
 {
 	FILE *fp;
 
-	CONF_VALUE *value;
+	char *key;
+	char *value;
 	char *note;
 
 	struct creater *next;
@@ -56,7 +57,7 @@ CONF_CREATER *conf_creater_new(const char *path);
  * 正确时返回0
  * 错误时返回小于0的错误代码
  */
-int conf_insert(CONF_CREATER *creater,CONF_VALUE *value,const char *note);
+int conf_insert(CONF_CREATER *creater,char *key,char *value,char *note);
 
 //保存配置文件,正确时返回0，错误时返回小于0的错误代码
 int conf_save(CONF_CREATER *creater);
