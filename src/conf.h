@@ -42,6 +42,9 @@ int conf_parse(CONF *conf);
 //获取当前配置文件中键值对个数
 int conf_count(CONF *conf);
 
+//得到所有键
+char **conf_key_list(CONF *conf);
+
 //创建一个配置文件，path为配置文件的路经
 CONF_CREATER *conf_creater_new(const char *path);
 

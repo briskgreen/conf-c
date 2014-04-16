@@ -9,6 +9,8 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res);
 int next_line(char *data);
 //释放内存
 void free_data(CONF_ARG *data);
+//得到键
+void get_key(char **key,int *index,CONF_ARG *arg);
 
 //打开配置文件并初始化值
 //path为配置文件路径
@@ -73,20 +75,7 @@ int conf_parse(CONF *conf)
 	{
 		//如果已经解析了则进行释放
 		if(value)
-		{
-			int i=0;
-			int j;
-
-			while(value[i])
-			{
-				free(value[i].key);
-				for(j=0;value[i].value[j] != NULL;++i)
-					free(value[i].value[j]);
-
-				free(value[i]);
-				++i;
-			}
-		}
+			free(value);
 
 		//返回错误
 		retcode=CONF_NO_MEM;
@@ -409,5 +398,37 @@ void free_data(CONF_ARG *data)
 		//free(data->value);
 
 		data=data->next;
+	}
+}
+
+char **conf_key_list(CONF *conf)
+{
+	char **key;
+	int i;
+	int index=0;
+
+	//开辟足够的内存空间
+	key=malloc(sizeof(char *)*(conf->len+1));
+	if(key == NULL)
+		return NULL;
+
+	key[conf->len]=NULL;
+
+	//读取出所有键
+	for(i=0;i < conf->len;++i)
+		if(conf->hash_data[i].len > 0)
+			get_key(key,&index,&conf->hash_data[i]);
+
+	return key;
+}
+
+void get_key(char **key,int *index,CONF_ARG *arg)
+{
+	while(arg != NULL)
+	{
+		key[*index]=arg->value->key;
+
+		++(*index);
+		arg=arg->next;
 	}
 }

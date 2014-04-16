@@ -21,7 +21,7 @@ void conf_value_insert(CONF_ARG *arg,CONF_VALUE *value,int len)
 
 	/* 如果要插入的地方已经有一个值则使用第二个哈希函数计算一个新的哈希值
 	 * 如果新的哈希值所在的位置中数据的个数比第一个哈希值所计算的位置少则使用新的值*/
-	if(arg[hash].len > 1)
+	if(arg[hash].len > 0)
 	{
 		hash2=hash_func2(value->key)%len;
 		if(arg[hash2].len < arg[hash].len)
@@ -149,8 +149,22 @@ int hash_search(CONF_ARG *arg,char *key,CONF_VALUE **value)
 
 void hash_insert(CONF_ARG *arg,CONF_VALUE *value)
 {
-	while(arg->next != NULL)
-		arg=arg->next;
+	CONF_ARG *temp;
 
-	arg->value=value;
+	if(arg->len == 1)
+	{
+		arg->value=value;
+		arg->next=NULL;
+	}
+	else
+	{
+		temp=malloc(sizeof(CONF_ARG));
+		temp->value=value;
+		temp->next=NULL;
+
+		while(arg->next != NULL)
+			arg=arg->next;
+
+		arg->next=temp;
+	}
 }
