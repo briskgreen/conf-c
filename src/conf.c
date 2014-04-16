@@ -180,7 +180,8 @@ int conf_save(CONF_CREATER *creater)
 		//如果有注释则加入注释以#字开头
 		if(creater->note != NULL)
 			fprintf(head->fp,"#%s\n",creater->note);
-		fprintf(head->fp,"%s = %s\n",creater->key,creater->value);
+		if(creater->key != NULL && creater->value != NULL)
+			fprintf(head->fp,"%s = %s\n",creater->key,creater->value);
 		creater=creater->next;
 		//如果该键有多个参数则用,分开
 		/*if(creater->value->value[1] != NULL)
