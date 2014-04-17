@@ -1,0 +1,14 @@
+#这是一个测试文件
+
+#单个参数
+arg1 = abc
+#多个参数
+arg2 = abc,def
+#空白符
+arg3 = 'abc def'
+#特殊符号
+arg4 = "abc ' def"
+#多参数，特殊符号
+arg5 = "abc,def","#this is value",hello
+
+#文件结束

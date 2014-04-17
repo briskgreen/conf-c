@@ -126,6 +126,7 @@ CONF_CREATER *conf_creater_new(const char *path)
 		return NULL;
 	}
 
+	creater->len=0;
 	creater->key=NULL;
 	creater->value=NULL;
 	creater->note=NULL;
@@ -138,8 +139,9 @@ int conf_insert(CONF_CREATER *creater,char *key,char *value,char *note)
 	//结点
 	CONF_CREATER *temp;
 
+	++creater->len;
 	//如果是第一个参数，则直接放入
-	if(creater->key == NULL)
+	if(creater->len == 1)
 	{
 		creater->key=key;
 		creater->value=value;
@@ -172,7 +174,7 @@ int conf_save(CONF_CREATER *creater)
 	CONF_CREATER *head=creater;
 //	int i;
 
-	if(creater->key == NULL)
+	if(creater->len == 0)
 		return CONF_NO_DATA;
 
 	while(creater != NULL)

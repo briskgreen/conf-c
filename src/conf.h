@@ -22,11 +22,14 @@
 #define CONF_VALUE_ERR -5 //值错误
 
 //保存配置文件数据结构
-//value为键值对数据结构
+//len为当前参数个数
+//key为键
+//value值
 //note为注释
 typedef struct creater
 {
 	FILE *fp;
+	int len;
 
 	char *key;
 	char *value;

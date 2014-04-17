@@ -17,11 +17,13 @@ int main(int argc,char **argv)
 	//成功时返回0，出错时返回错误代码
 	//使用conf_error函数可打印错误代码的信息
 	
-	conf_insert(conf,"arg1","abc","这是一个测试文件\n\n单个参数");
+	conf_insert(conf,NULL,NULL,"这是一个测试文件\n");
+	conf_insert(conf,"arg1","abc","单个参数");
 	conf_insert(conf,"arg2","abc,def","多个参数");
 	conf_insert(conf,"arg3","\'abc def\'","空白符");
 	conf_insert(conf,"arg4","\"abc \' def\"","特殊符号");
-	conf_insert(conf,"arg5","\"abc,def\",\"#this is value\",hello","多参数，特殊符号\n\n文件结束");
+	conf_insert(conf,"arg5","\"abc,def\",\"#this is value\",hello\n","多参数，特殊符号");
+	conf_insert(conf,NULL,NULL,"文件结束");
 
 	//保存配置文件
 	conf_save(conf);
