@@ -1,10 +1,8 @@
 all:libconf.a
 
 libconf.a:conf.o stack.o hash.o
-	mkdir -p include/conf-c include/conf-c/hash include/conf-c/stack lib 
+	mkdir -p include/conf-c lib 
 	cp src/conf.h include/conf-c/
-	cp src/stack/stack.h include/conf-c/stack/
-	cp src/hash/hash.h include/conf-c/hash/
 	ar rcs libconf.a conf.o stack.o hash.o
 	cp libconf.a lib/
 
