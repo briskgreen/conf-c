@@ -285,7 +285,11 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				if(!key)
 				{
 					value=realloc(value,sizeof(CONF_VALUE)*(len+1));
+					if(value == NULL)
+						return CONF_NO_MEM;
 					value[len].key=malloc(sizeof(char)*stack_length(&stack)+1);
+					if(value[len].key == NULL)
+						return CONF_NO_MEM;
 					snprintf(value[len].key,sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
 					key=1;
 					value[len].value=NULL;
@@ -336,7 +340,11 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				if(arg) //存入多参数
 				{
 					value[len].value=realloc(value[len].value,sizeof(char *)*(count+1));
+					if(value[len].value == NULL)
+						return CONF_NO_MEM;
 					value[len].value[count]=malloc(sizeof(char)*stack_length(&stack)+1);
+					if(value[len].value[count] == NULL)
+						return CONF_NO_MEM;
 					snprintf(value[len].value[count],sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
 					++count;
 					stack_cleanup(&stack);
@@ -364,7 +372,11 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 				if(stack_empty(&stack))
 					break;
 				value[len].value=realloc(value[len].value,sizeof(char *)*(count+2));
+				if(value[len].value == NULL)
+					return CONF_NO_MEM;
 				value[len].value[count]=malloc(sizeof(char)*stack_length(&stack)+1);
+				if(value[len].value[count] == NULL)
+					return CONF_NO_MEM;
 				snprintf(value[len].value[count],sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
 				value[len].value[count+1]=NULL;
 				count=0;
