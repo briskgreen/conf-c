@@ -1,4 +1,5 @@
-#include "conf.h"
+#include "hash/hash.h"
+#include "stack/stack.h"
 
 //解析对参数
 //data为配置文件内容
@@ -441,4 +442,58 @@ void get_key(char **key,int *index,CONF_ARG *arg)
 		++(*index);
 		arg=arg->next;
 	}
+}
+
+CONF_VALUE *conf_value_get(CONF *conf,const char *key)
+{
+	int hash;
+	CONF_VALUE *value;
+
+	/* 首先使用第一个哈希函数计算出哈希值，如果找到匹配的key则返回
+	 * 否则使用第二个哈希函数计算值并比对key
+	 * 如果都未能匹配，则返回NULL */
+	hash=hash_func1(key)%conf->len;
+	if(hash_search(&conf->hash_data[hash],key,&value))
+		return value;
+	else
+	{
+		hash=hash_func2(key)%conf->len;
+		if(hash_search(&conf->hash_data[hash],key,&value))
+			return value;
+	}
+
+	return NULL;
+}
+
+CONF_VALUE **conf_value_get_all(CONF *conf)
+{
+	CONF_VALUE **value;
+	int len=0;
+	int index=0;
+	int i;
+
+	if(conf->len == 0)
+		return NULL;
+
+	//第一次扫描数组中所有存在数据的地方并计算长度
+	for(i=0;i != conf->len;++i)
+		if(conf->hash_data[i].len > 0)
+			++len;
+
+	//动态申请内存存储返回的数据
+	value=malloc(sizeof(CONF_VALUE *)*(len+1));
+	if(value == NULL)
+		return NULL;
+	value[len]=NULL;
+	//第二次扫描，返回数组中所有有数据的值
+	for(i=0;i != conf->len;++i)
+	{
+		if(conf->hash_data[i].len > 0)
+		{
+			value[index]=conf->hash_data[i].value;
+			++index;
+		}
+	}
+
+	return value;
 }
