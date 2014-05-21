@@ -405,7 +405,7 @@ int next_line(char *data)
 	while(data[i] != '\n')
 		++i;
 
-	return i;
+	return i-1;
 }
 
 void free_data(CONF_ARG *data)
