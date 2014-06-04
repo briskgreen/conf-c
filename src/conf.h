@@ -22,7 +22,7 @@
 #define CONF_VALUE_ERR -5 //值错误
 
 /*值数据结构*/
-typedef struct node
+typedef struct conf_value
 {
 	char *key;
 	char **value;
