@@ -18,17 +18,17 @@ typedef struct
 }STACK;
 
 //初始化栈结构
-void stack_init(STACK *stack);
+void conf_stack_init(STACK *stack);
 
 //插入字符
-int stack_push(STACK *stack,char data);
+int conf_stack_push(STACK *stack,char data);
 
 //得到当前字符长度
-int stack_length(STACK *stack);
+int conf_stack_length(STACK *stack);
 
 //判断当前本是否为空
-int stack_empty(STACK *stack);
+int conf_stack_empty(STACK *stack);
 
 //清理栈数据结构
-void stack_cleanup(STACK *stack);
+void conf_stack_cleanup(STACK *stack);
 #endif

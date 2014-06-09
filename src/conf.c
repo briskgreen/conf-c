@@ -275,7 +275,7 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 	CONF_VALUE *value=NULL; //存放键值参数
 	STACK stack; //存放参数的栈
 
-	stack_init(&stack);
+	conf_stack_init(&stack);
 
 	while(data[i])
 	{
@@ -287,17 +287,17 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 					value=realloc(value,sizeof(CONF_VALUE)*(len+1));
 					if(value == NULL)
 						return CONF_NO_MEM;
-					value[len].key=malloc(sizeof(char)*stack_length(&stack)+1);
+					value[len].key=malloc(sizeof(char)*conf_stack_length(&stack)+1);
 					if(value[len].key == NULL)
 						return CONF_NO_MEM;
-					snprintf(value[len].key,sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
+					snprintf(value[len].key,sizeof(char)*conf_stack_length(&stack)+1,"%s",stack.data);
 					key=1;
 					value[len].value=NULL;
-					stack_cleanup(&stack);
+					conf_stack_cleanup(&stack);
 				}
 				else
 				{
-					if(stack_push(&stack,data[i]) != 0) //否则则是值压入栈
+					if(conf_stack_push(&stack,data[i]) != 0) //否则则是值压入栈
 						return STACK_MAX;
 				}
 				break;
@@ -312,7 +312,7 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 					flags=0;
 				else if(flags == 2)
 				{
-					if(stack_push(&stack,data[i]) != 0)
+					if(conf_stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
 				}
 				break;
@@ -323,7 +323,7 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 					flags=0;
 				else if(flags == 1)
 				{
-					if(stack_push(&stack,data[i]) != 0)
+					if(conf_stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
 				}
 				break;
@@ -334,7 +334,7 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
  */
 			case ',':
 				if(flags)
-					stack_push(&stack,data[i]);
+					conf_stack_push(&stack,data[i]);
 				if(!flags && !arg)
 					arg=1;
 				if(arg) //存入多参数
@@ -342,12 +342,12 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 					value[len].value=realloc(value[len].value,sizeof(char *)*(count+1));
 					if(value[len].value == NULL)
 						return CONF_NO_MEM;
-					value[len].value[count]=malloc(sizeof(char)*stack_length(&stack)+1);
+					value[len].value[count]=malloc(sizeof(char)*conf_stack_length(&stack)+1);
 					if(value[len].value[count] == NULL)
 						return CONF_NO_MEM;
-					snprintf(value[len].value[count],sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
+					snprintf(value[len].value[count],sizeof(char)*conf_stack_length(&stack)+1,"%s",stack.data);
 					++count;
-					stack_cleanup(&stack);
+					conf_stack_cleanup(&stack);
 					arg=0;
 				}
 				break;
@@ -356,7 +356,7 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 					i+=next_line(data+i);
 				else
 				{
-					if(stack_push(&stack,data[i]) != 0)
+					if(conf_stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
 				}
 				break;
@@ -364,28 +364,28 @@ int parse_value(CONF *conf,char *data,CONF_VALUE **res)
 			case '\t':
 				if(flags)
 				{
-					if(stack_push(&stack,data[i]) != 0)
+					if(conf_stack_push(&stack,data[i]) != 0)
 						return STACK_MAX;
 				}
 				break;
 			case '\n': //一行数据读完
-				if(stack_empty(&stack))
+				if(conf_stack_empty(&stack))
 					break;
 				value[len].value=realloc(value[len].value,sizeof(char *)*(count+2));
 				if(value[len].value == NULL)
 					return CONF_NO_MEM;
-				value[len].value[count]=malloc(sizeof(char)*stack_length(&stack)+1);
+				value[len].value[count]=malloc(sizeof(char)*conf_stack_length(&stack)+1);
 				if(value[len].value[count] == NULL)
 					return CONF_NO_MEM;
-				snprintf(value[len].value[count],sizeof(char)*stack_length(&stack)+1,"%s",stack.data);
+				snprintf(value[len].value[count],sizeof(char)*conf_stack_length(&stack)+1,"%s",stack.data);
 				value[len].value[count+1]=NULL;
 				count=0;
 				++len;
 				key=0;
-				stack_cleanup(&stack);
+				conf_stack_cleanup(&stack);
 				break;
 			default: //插入字符
-				if(stack_push(&stack,data[i]) != 0)
+				if(conf_stack_push(&stack,data[i]) != 0)
 					return STACK_MAX;
 		}
 
@@ -464,13 +464,13 @@ CONF_VALUE *conf_value_get(CONF *conf,const char *key)
 	/* 首先使用第一个哈希函数计算出哈希值，如果找到匹配的key则返回
 	 * 否则使用第二个哈希函数计算值并比对key
 	 * 如果都未能匹配，则返回NULL */
-	hash=hash_func1(key)%conf->len;
-	if(hash_search(&conf->hash_data[hash],key,&value))
+	hash=conf_hash_func1(key)%conf->len;
+	if(conf_hash_search(&conf->hash_data[hash],key,&value))
 		return value;
 	else
 	{
-		hash=hash_func2(key)%conf->len;
-		if(hash_search(&conf->hash_data[hash],key,&value))
+		hash=conf_hash_func2(key)%conf->len;
+		if(conf_hash_search(&conf->hash_data[hash],key,&value))
 			return value;
 	}
 
