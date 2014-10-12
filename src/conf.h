@@ -1,5 +1,7 @@
-/* VERSION : 1.1
- * Date :2014-10-12
+/* VERSION : 1.2
+ * Date : 2014-10-12
+ * 作者 : 坑头哥(Brisk)
+ * 邮箱&BUG报告 : briskgreen@163.com
  * conf-c一个基于c语言的轻量级读取/创建配置文件的库函数。
  * 该库使用MIT许可协议，被授权人有权利有使用、复制、修改、合并、出版发布、散布、再授权和/或贩售软件及软件的副本，及授予被供应人同等权利，惟服从以下义务。
  * 在软件和软件的所有副本中都必须包含以上版权声明和本许可声明。
@@ -22,6 +24,8 @@
 #define CONF_NO_MEM -3 //申请内存出错
 #define CONF_KEY_ERR -4 //键错误
 #define CONF_VALUE_ERR -5 //值错误
+#define CONF_NO_KEY -6 //没有键名
+#define CONF_NO_VALUE -7 //没有值
 
 #define HASH_DEFAULT 100 //默认哈希表大小
 #define HASH_SP 0.7 //当前哈希表中数据个数大于等于70%时表大小动态增长70%
@@ -117,5 +121,8 @@ CONF_VALUE *conf_value_get(CONF *conf,const char *key);
 
 //得到所有键值对
 CONF_VALUE **conf_value_get_all(CONF *conf);
+
+//是否打印错误信息位置
+void conf_pos_msg_err(int on);
 
 #endif
