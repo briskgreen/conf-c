@@ -15,16 +15,16 @@ enum conf_stat
 };
 
 #define POP (*data)
-#define ADVANCE (++data)
-#define BACK (--data)
-#define LEN (data-str)
+#define ADVANCE (++data,++offset)
+#define BACK (--data,--offset)
 
 #define CONF_GET_VALUE(value,stack) \
 {\
 	if(conf_stack_get_data(stack) == NULL)\
 	{\
 		retcode=CONF_KEY_ERR;\
-		printf("行:%d ",line);\
+		if(conferr)\
+			printf("行:%d 列:%d %c",line,offset,POP);\
 		goto end;\
 	}\
 	value=realloc(value,sizeof(char*)*(value_len+2));\
@@ -45,6 +45,8 @@ enum conf_stat
 }
 
 int line=1; //行
+int offset=1; //列
+int conferr=0;
 
 //解析对参数
 //data为配置文件内容
@@ -59,13 +61,15 @@ void free_data(CONF_ARG *data);
 //得到键
 void get_key(char **key,int *index,CONF_ARG *arg);
 //读取键值
-int _conf_read_key(char *data,int len,STACK *stack);
+int _conf_read_key(char *data,STACK *stack);
 //获取值状态
 enum conf_stat _conf_value_status(char c);
 //读取值
-int _conf_read_value(char *data,int len,STACK *stack);
+int _conf_read_value(char *data,STACK *stack);
 //读取带有引号的值
-int _conf_read_value_with_quote(char *data,int len,STACK *stack,char quote);
+int _conf_read_value_with_quote(char *data,STACK *stack,char quote);
+//读取带有引号的键
+int _conf_read_key_with_quote(char *data,STACK *stack,char quote);
 
 //打开配置文件并初始化值
 //path为配置文件路径
@@ -77,14 +81,16 @@ CONF *conf_open(const char *path)
 	conf=malloc(sizeof(CONF));
 	if(conf == NULL)
 	{
-		printf("申请内存空间出错!\n");
+		if(conferr)
+			printf("申请内存空间出错!\n");
 		return NULL;
 	}
 
 	//打开配置文件，返回FILE指针
 	if((conf->fp=fopen(path,"rb")) == NULL)
 	{
-		printf("打开%s出错!\n",path);
+		if(conferr)
+			printf("打开%s出错!\n",path);
 		return NULL;
 	}
 
@@ -149,13 +155,15 @@ CONF_CREATER *conf_creater_new(const char *path)
 	creater=malloc(sizeof(CONF_CREATER));
 	if(creater == NULL)
 	{
-		printf("申请内存空间出错!\n");
+		if(conferr)
+			printf("申请内存空间出错!\n");
 		return NULL;
 	}
 
 	if((creater->fp=fopen(path,"wb")) == NULL)
 	{
-		printf("创建配置文件出错!\n");
+		if(conferr)
+			printf("创建配置文件出错!\n");
 		return NULL;
 	}
 
@@ -278,6 +286,12 @@ void conf_error(int errcode)
 		case CONF_VALUE_ERR:
 			printf("错误:错误的值!\n");
 			break;
+		case CONF_NO_KEY:
+			printf("错误:没有键名!\n");
+			break;
+		case CONF_NO_VALUE:
+			printf("错误:没有值!\n");
+			break;
 		default:
 			printf("未知错误!\n");
 	}
@@ -286,8 +300,8 @@ void conf_error(int errcode)
 //解析参数
 int parse_value(CONF *conf,char *data)
 {
-	//保存解析字符串的首地址
-	char *str=data;
+/*	//保存解析字符串的首地址
+	char *str=data;*/
 	//状态
 	int status;
 	int save_status;
@@ -300,6 +314,7 @@ int parse_value(CONF *conf,char *data)
 	int retcode=CONF_OK;
 	//多参数个数
 	int value_len=0;
+	int index;
 
 	//初始化栈和状态
 	conf_stack_init(&stack);
@@ -318,8 +333,11 @@ redo:
 					status=conf_stat_note;
 				else if(save_status == conf_stat_key)
 				{
-					retcode=CONF_VALUE_ERR;
-					printf("行:%d ",line);
+					retcode=CONF_NO_VALUE;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					free(value->key);
+					free(value);
 					conf_free(conf);
 					goto end;
 				}
@@ -330,8 +348,9 @@ redo:
 					status=conf_stat_key;
 				else
 				{
-					retcode=CONF_KEY_ERR;
-					printf("行:%d ",line);
+					retcode=CONF_NO_KEY;
+					if(conferr)
+						printf("行:%d 列:%d =",line,offset);
 					if(value)
 					{
 						if(value->key)
@@ -354,28 +373,63 @@ redo:
 					ADVANCE;
 				else
 				{
-					retcode=CONF_KEY_ERR;
-					printf("行:%d ",line);
+					retcode=CONF_NO_VALUE;
+					if(conferr)
+						printf("行:%d 列:%d %s",line,offset,value->key);
+					free(value->key);
+					free(value);
 					conf_free(conf);
 					goto end;
 				}
 				++line;
+				offset=1;
 				goto redo;
 			case '\0':
 				if(status == conf_stat_normal)
 				{
-					retcode=CONF_KEY_ERR;
-					printf("行:%d ",line);
+					retcode=CONF_NO_VALUE;
+					if(conferr)
+						printf("行:%d 列:%d %s",line,offset,value->key);
+					free(value->key);
+					free(value);
 					conf_free(conf);
 					goto end;
 				}
 				status=conf_stat_done;
 				break;
+			case '\'':
+			case '"':
+				if(status == conf_stat_start && save_status != conf_stat_key)
+					status=conf_stat_quote;
+				else
+				{
+					retcode=CONF_KEY_ERR;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					goto end;
+				}
+				break;
+			case ',':
+				if(save_status == conf_stat_key || status != conf_stat_quote)
+				{
+					retcode=CONF_KEY_ERR;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					if(save_status == conf_stat_key)
+					{
+						free(value->key);
+						free(value);
+					}
+					goto end;
+				}
 			default:
 				if(save_status == conf_stat_key)
 				{
-					retcode=CONF_VALUE_ERR;
-					printf("行:%d ",line);
+					retcode=CONF_NO_VALUE;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					free(value->key);
+					free(value);
 					conf_free(conf);
 					goto end;
 				}
@@ -391,10 +445,17 @@ redo:
 				status=conf_stat_start;
 				save_status=conf_stat_normal;
 				++line;
+				offset=1;
 				goto redo;
 			//读取键
 			case conf_stat_start:
-				data+=_conf_read_key(data,LEN,&stack);
+				index=_conf_read_key(data,&stack);
+				if(index == -1)
+				{
+					retcode=CONF_KEY_ERR;
+					goto end;
+				}
+				data+=index;
 				value=malloc(sizeof(CONF_VALUE));
 				if(value == NULL)
 				{
@@ -404,8 +465,9 @@ redo:
 				}
 				if(conf_stack_get_data(&stack) == NULL)
 				{
-					retcode=CONF_KEY_ERR;
-					printf("行:%d ",line);
+					retcode=CONF_NO_KEY;
+					if(conferr)
+						printf("行:%d 列:%d",line,offset);
 					free(value);
 					conf_free(conf);
 					goto end;
@@ -431,6 +493,48 @@ redo:
 				save_status=conf_stat_key;
 				end_status=_conf_value_status(POP);
 				break;
+			case conf_stat_quote:
+				quote=POP;
+				ADVANCE;
+				index=_conf_read_key_with_quote(data,&stack,quote);
+				if(index == -1)
+				{
+					retcode=CONF_KEY_ERR;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					goto end;
+				}
+				data+=index;
+				value=malloc(sizeof(CONF_VALUE));
+				if(value == NULL)
+				{
+					retcode=CONF_NO_MEM;
+					conf_free(conf);
+					goto end;
+				}
+				if(conf_stack_get_data(&stack) == NULL)
+				{
+					retcode=CONF_NO_KEY;
+					if(conferr)
+						printf("行:%d 列:%d",line,offset);
+					free(value);
+					conf_free(conf);
+					goto end;
+				}
+				value->key=strdup(conf_stack_get_data(&stack));
+				if(value->key == NULL)
+				{
+					retcode=CONF_NO_MEM;
+					free(value);
+					conf_free(conf);
+					goto end;
+				}
+				conf_stack_cleanup(&stack);
+				save_status=conf_stat_key;
+				end_status=conf_stat_done;
+				value->value=NULL;
+				ADVANCE;
+				goto redo;
 			case conf_stat_done:
 				retcode=CONF_OK;
 				goto end;
@@ -444,8 +548,11 @@ value_redo:
 				if((save_status != conf_stat_key) ||
 						(status == conf_stat_key))
 				{
-					retcode=CONF_VALUE_ERR;
-					printf("行:%d ",line);
+					retcode=CONF_NO_VALUE;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					free(value->key);
+					free(value);
 					conf_free(conf);
 					goto end;
 				}
@@ -463,21 +570,50 @@ value_redo:
 				break;
 			//读取值
 			case conf_stat_normal:
-				data+=_conf_read_value(data,LEN,&stack);
+				index=_conf_read_value(data,&stack);
+				if(index == -1)
+				{
+					retcode=CONF_VALUE_ERR;
+					goto end;
+				}
+				data+=index;
 				CONF_GET_VALUE(value->value,&stack);
 				while(isspace(POP) && (POP != '\n'))
 					ADVANCE;
 				end_status=_conf_value_status(POP);
+				if(end_status == conf_stat_normal || end_status == conf_stat_quote)
+				{
+					retcode=CONF_VALUE_ERR;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					goto end;
+				}
 				status=conf_stat_start;
 				goto value_redo;
 			//读取带有引号的值
 			case conf_stat_quote:
 				quote=POP;
 				ADVANCE;
-				data+=_conf_read_value_with_quote(data,LEN,&stack,quote);
+				index=_conf_read_value_with_quote(data,&stack,quote);
+				if(index == -1)
+				{
+					retcode=CONF_VALUE_ERR;
+					goto end;
+				}
+				data+=index;
 				CONF_GET_VALUE(value->value,&stack);
 				ADVANCE;
+				while(isspace(POP) && (POP != '\n'))
+					ADVANCE;
 				end_status=_conf_value_status(POP);
+				status=conf_stat_start;
+				if(end_status == conf_stat_normal)
+				{
+					retcode=CONF_VALUE_ERR;
+					if(conferr)
+						printf("行:%d 列:%d %c",line,offset,POP);
+					goto end;
+				}
 				goto value_redo;
 			//多参数值读取
 			case conf_stat_more_key:
@@ -606,7 +742,12 @@ CONF_VALUE **conf_value_get_all(CONF *conf)
 	return value;
 }
 
-int _conf_read_key(char *data,int len,STACK *stack)
+void conf_pos_msg_err(int on)
+{
+	conferr=on;
+}
+
+int _conf_read_key(char *data,STACK *stack)
 {
 	int i=0;
 	char c;
@@ -618,14 +759,15 @@ int _conf_read_key(char *data,int len,STACK *stack)
 	}
 	if(POP == '\n')
 	{
-		printf("行:%d 列:%d 解析出错\n",line,i-len);
-		return 0;
+		if(conferr)
+			printf("行:%d 列:%d 解析出错!",line,offset);
+		return -1;
 	}
 
 	do
 	{
 		c=POP;
-		if(isspace(c) || c == '=' || c == '#')
+		if(isspace(c) || c == '=' || c == '#' || c == ',' || c == '\'' || c == '"')
 			break;
 		conf_stack_push(stack,c);
 		++i;
@@ -652,7 +794,7 @@ enum conf_stat _conf_value_status(char c)
 	}
 }
 
-int _conf_read_value(char *data,int len,STACK *stack)
+int _conf_read_value(char *data,STACK *stack)
 {
 	char c;
 	int i=0;
@@ -664,14 +806,15 @@ int _conf_read_value(char *data,int len,STACK *stack)
 	}
 	if(POP == '\n')
 	{
-		printf("行:%d 列:%d 解析出错!\n",line,i-len);
-		return 0;
+		if(conferr)
+			printf("行:%d 列:%d 解析出错!",line,offset);
+		return -1;
 	}
 
 	do
 	{
 		c=POP;
-		if(isspace(c) || c == ',' || c == '#')
+		if(isspace(c) || c == ',' || c == '#' || c == '\'' || c == '"')
 			break;
 
 		conf_stack_push(stack,c);
@@ -682,26 +825,22 @@ int _conf_read_value(char *data,int len,STACK *stack)
 	return i;
 }
 
-int _conf_read_value_with_quote(char *data,int len,STACK *stack,char quote)
+int _conf_read_value_with_quote(char *data,STACK *stack,char quote)
 {
 	char c;
 	int i=0;
 
-	while(isspace(POP) && (POP != '\n'))
-	{
-		ADVANCE;
-		++i;
-	}
 	if(POP == '\n')
 	{
-		printf("行:%d 列:%d 解析出错!\n",line,i-len);
-		return 0;
+		if(conferr)
+			printf("行:%d 列:%d 解析出错!",line,offset);
+		return -1;
 	}
 
 	do
 	{
 		c=POP;
-		if(c == quote)
+		if(c == quote || c == '\n')
 			break;
 
 		conf_stack_push(stack,c);
@@ -709,8 +848,37 @@ int _conf_read_value_with_quote(char *data,int len,STACK *stack,char quote)
 		ADVANCE;
 	}while(c);
 
-	if(c == '\0')
-		return 0;
+	if(c == '\0'|| c == '\n')
+		return -1;
+
+	return i;
+}
+
+int _conf_read_key_with_quote(char *data,STACK *stack,char quote)
+{
+	char c;
+	int i=0;
+
+	if(POP == '\n')
+	{
+		if(conferr)
+			printf("行:%d 列:%d 解析出错!",line,offset);
+		return -1;
+	}
+
+	do
+	{
+		c=POP;
+		if(c == quote || c == '\n')
+			break;
+
+		conf_stack_push(stack,c);
+		++i;
+		ADVANCE;
+	}while(c);
+
+	if(c == '\n' || c == '\0')
+		return -1;
 
 	return i;
 }
