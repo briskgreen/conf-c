@@ -15,6 +15,7 @@
 //#include "stack/stack.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 //定义错误代码

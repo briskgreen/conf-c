@@ -2,6 +2,10 @@
 #include "stack/stack.h"
 #include <ctype.h>
 
+extern unsigned int conf_hash_func1(const char *key);
+extern unsigned int conf_hash_func2(const char *key);
+extern int conf_hash_search(CONF_ARG *arg,char *key,CONF_VALUE **value);
+
 //解析过程的各状态
 enum conf_stat
 {
@@ -172,6 +176,8 @@ CONF_CREATER *conf_creater_new(const char *path)
 	creater->value=NULL;
 	creater->note=NULL;
 	creater->next=NULL;
+
+	return creater;
 }
 
 //插入一个参数到内存
@@ -236,7 +242,7 @@ int conf_save(CONF_CREATER *creater)
 void conf_free(CONF *conf)
 {
 	int i;
-	int j;
+	//int j;
 
 	for(i=0;i != conf->size;++i)
 	{
@@ -697,12 +703,12 @@ CONF_VALUE *conf_value_get(CONF *conf,const char *key)
 	 * 否则使用第二个哈希函数计算值并比对key
 	 * 如果都未能匹配，则返回NULL */
 	hash=conf_hash_func1(key)%conf->size;
-	if(conf_hash_search(&conf->hash_data[hash],key,&value))
+	if(conf_hash_search(&conf->hash_data[hash],(char *)key,&value))
 		return value;
 	else
 	{
 		hash=conf_hash_func2(key)%conf->size;
-		if(conf_hash_search(&conf->hash_data[hash],key,&value))
+		if(conf_hash_search(&conf->hash_data[hash],(char *)key,&value))
 			return value;
 	}
 
